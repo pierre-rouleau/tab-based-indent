@@ -172,3 +172,38 @@ The following commands are provided.
                                        the tabs-based indented buffer back into
                                        space-based indented scheme.
 = ==================================== ================================================
+
+Other Packages
+==============
+
+- `dtrt-indent`_
+
+  - If you intend to work with files written by others,  the indentation settings
+    of those files may very well differ from your own.  The `dtrt-indent`_
+    package detects the indentation scheme used by a file and adjust the value
+    of the indentation control variables accordingly.  This is a great help as
+    the first step in getting ready to use the ``tbindent-mode``.
+
+- `PEL`_
+
+  - The `PEL`_ system incorporates code similar to the ``tbindent-mode`` and
+    provides several other helpful commands for indentation and other Emacs
+    topics.  The the ``tbindent-mode`` code was first created as part of PEL
+    and then a copy was extracted to be self-sufficient.  PEL is a much larger
+    system with a  customization-centric configuration and extensive PDF table
+    based documentation.
+    Use a browser that can render PDF (like Firefox) to look at
+    the `PEL index PDF`_ and its `⅀ Indentation PDF`_ for more info.
+
+
+
+---------------------------------------------------------------------------
+
+
+.. ---------------------------------------------------------------------------
+.. links
+
+.. _dtrt-indent: https://github.com/jscheid/dtrt-indent
+.. _PEL: https://github.com/pierre-rouleau/pel#readme
+.. _PEL index PDF: https://raw.githubusercontent.com/pierre-rouleau/pel/master/doc/pdf/-index.pdf
+.. _⅀ Indentation PDF: https://raw.githubusercontent.com/pierre-rouleau/pel/master/doc/pdf/indentation.pdf
