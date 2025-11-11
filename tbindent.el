@@ -2,7 +2,7 @@
 
 ;; Created   : Monday, November 10 2025.
 ;; Author    : Pierre Rouleau <prouleau001@gmail.com>
-;; Time-stamp: <2025-11-11 10:39:46 EST, updated by Pierre Rouleau>
+;; Time-stamp: <2025-11-11 12:19:00 EST, updated by Pierre Rouleau>
 
 ;; This file is part of the TBINDENT package.
 ;; This file is not part of GNU Emacs.
@@ -496,7 +496,7 @@ This is a indentation specific `tabify' function."
                 (delete-region (match-beginning 0) (point))
                 (indent-to end-col)))))))))
 
-(defun tbindent-indent-with-tabs (&optional with-tab-width)
+(defun tbindent-indent-with-tabs (&optional with-tab-width by-minor-mode)
   "Convert current buffer to use tabs for indentation.
 
 If the optional WITH-TAB-WIDTH numerical argument is specified, after
@@ -506,49 +506,63 @@ width to use.
 
 Requirement: before using this command, the buffer local `tab-width' must be
              equal to the indentation width used by the code, which should be
-             the value used by the indentation control variable for the mode."
+             the value used by the indentation control variable for the mode.
+
+This command is only available when the `tbindent-mode' is turned off.
+Since it is used internally by `tbindent-mode', the BY-MINOR-MODE parameter
+must only be set by the call from `tbindent-mode'."
   (interactive
-   (if (and current-prefix-arg (not (consp current-prefix-arg)))
+   (if (and current-prefix-arg
+            (not (consp current-prefix-arg)))
        (list (prefix-numeric-value current-prefix-arg))
      (list (tbindent-read-number
             "Indent with tab width: "
             tab-width
             (tbindent-major-mode-symbol-for
              "pel-indent-with-tabs-history-for-%s")))))
-  ;; First tabify indentation whitespace, replacing space-based indentation
-  ;; with tabs that represent the specified tab width.
-  (tbindent-tabify-all-indent)
-  ;; Remember `tab-width' originally used in the buffer.
-  ;; It should correspond with the indentation width.
-  (unless tbindent--original-tab-width
-    (setq-local tbindent--original-tab-width tab-width))
-  ;; Adjust the tab and indentation width to the new selection.
-  (tbindent-set-tab-width with-tab-width)
-  ;; New indented code must now be indented with hard tabs.
-  (indent-tabs-mode 1))
+  (if (or by-minor-mode (not tbindent-mode))
+      (progn
+        ;; First tabify indentation whitespace, replacing space-based indentation
+        ;; with tabs that represent the specified tab width.
+        (tbindent-tabify-all-indent)
+        ;; Remember `tab-width' originally used in the buffer.
+        ;; It should correspond with the indentation width.
+        (unless tbindent--original-tab-width
+          (setq-local tbindent--original-tab-width tab-width))
+        ;; Adjust the tab and indentation width to the new selection.
+        (tbindent-set-tab-width with-tab-width)
+        ;; New indented code must now be indented with hard tabs.
+        (indent-tabs-mode 1))
+    (user-error "Command not available while tbindent-mode is active!")))
 
-(defun tbindent-indent-with-spaces (&optional with-tab-width)
+(defun tbindent-indent-with-spaces (&optional with-tab-width by-minor-mode)
   "Convert current buffer to use space for indentation.
 
 Restore the space-based indentation scheme using the tab width that was
 used before the first call to `tbindent-indent-with-tabs' unless the optional
 WITH-TAB-WIDTH numerical argument is specified.  If an optional
-numerical argument is specified, use that for tab width."
+numerical argument is specified, use that for tab width.
+
+This command is only available when the `tbindent-mode' is turned off.
+Since it is used internally by `tbindent-mode', the BY-MINOR-MODE parameter
+must only be set by the call from `tbindent-mode'."
   (interactive "P")
-  (save-excursion
-    (if with-tab-width
-        (tbindent-set-tab-width with-tab-width)
-      ;; Restore the original tab-width if it was stored in
-      ;; `tbindent--original-tab-width'
-      (when (or  tbindent--original-tab-width
-                 tbindent--last-set-tab-width)
-        (tbindent-set-tab-width tbindent--original-tab-width)))
-    ;; Then untabify.  Note that hard-tabs inside strings and comments will be
-    ;; replaced by spaces.  If this is a problem in some cases, please let me
-    ;; know.
-    (untabify (point-min) (point-max))
-    ;; New indented code must now be indented with spaces.
-    (indent-tabs-mode -1)))
+  (if (or by-minor-mode (not tbindent-mode))
+      (save-excursion
+        (if with-tab-width
+            (tbindent-set-tab-width with-tab-width)
+          ;; Restore the original tab-width if it was stored in
+          ;; `tbindent--original-tab-width'
+          (when (or  tbindent--original-tab-width
+                     tbindent--last-set-tab-width)
+            (tbindent-set-tab-width tbindent--original-tab-width)))
+        ;; Then untabify.  Note that hard-tabs inside strings and comments will be
+        ;; replaced by spaces.  If this is a problem in some cases, please let me
+        ;; know.
+        (untabify (point-min) (point-max))
+        ;; New indented code must now be indented with spaces.
+        (indent-tabs-mode -1))
+    (user-error "Command not available while tbindent-mode is active!")))
 
 
 ;; ---------------------------------------------------------------------------
@@ -671,14 +685,15 @@ in the normal file and the tabs-based indentation used inside the buffer, then
   "Disable tab-based indentation and restore native space-base indent.
 This is performed just before saving a buffer to a file or killing it."
   (setq-local tbindent--tab-width-used-during-tab-based-indent tab-width)
-  (tbindent-indent-with-spaces))
+  (tbindent-indent-with-spaces nil :by-minor-mode))
 
 (defun tbindent--after-save ()
   "Restore tab-based indentation with same width used before buffer save."
   (if tbindent--tab-width-used-during-tab-based-indent
       (progn
         (tbindent-indent-with-tabs
-         tbindent--tab-width-used-during-tab-based-indent)
+         tbindent--tab-width-used-during-tab-based-indent
+         :by-minor-mode)
         (set-buffer-modified-p nil))
     (display-warning 'tbindent
                      "tbindent--after-save: unknown indentation width!"
@@ -776,7 +791,7 @@ IMPORTANT:
                   ;; specified by customization (if that symbol exists and is non-nil
                   ;; or the native tab-width matching indentation width
                   (tbindent-indent-with-tabs
-                   (tbindent-target-indent-width-for major-mode))
+                   (tbindent-target-indent-width-for major-mode) :by-minor-mode)
                   ;; Install a special auto-fill function that is aware that each tab
                   ;; in the buffer corresponds to the file original space indentation
                   ;; scheme.
@@ -807,9 +822,10 @@ IMPORTANT:
             ;; tab-width differs from current indentation!
             (setq-local tbindent-mode nil)
             (user-error "\
-Cannot activate tbindent-mode: tab-width (%d) differs from %s (%d)!
+Cannot activate tbindent-mode in %s: tab-width (%d) differs from %s (%d)!
 These must be the same and must represent the real indentation width used.
 To change tab-width, type:  M-: (setq-local tab-width %d)"
+                        (current-buffer)
                         tab-width
                         (tbindent-mode-indent-control-vars)
                         (tbindent-mode-indentation-width)
@@ -818,7 +834,7 @@ To change tab-width, type:  M-: (setq-local tab-width %d)"
       ;; When turning mode off
       ;; ---------------------
       (with-silent-modifications
-        (tbindent-indent-with-spaces))
+        (tbindent-indent-with-spaces nil :by-minor-mode))
       (tbindent--restore-original-fill-function)
       (when (memq 'tbindent--before-save-or-kill before-save-hook)
         (remove-hook 'before-save-hook 'tbindent--before-save-or-kill 'local))
