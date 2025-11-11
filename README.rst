@@ -52,8 +52,8 @@ change the visual rendering of indentation to be narrower or wider.
 
 - When **tbindent-mode** is turned off, it
 
-   - converts the content of the buffer back to the original space-based
-     indentation scheme.
+  - converts the content of the buffer back to the original space-based
+    indentation scheme.
 
 **Saving To File**
 
