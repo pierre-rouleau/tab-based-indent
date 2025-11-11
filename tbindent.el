@@ -2,7 +2,7 @@
 
 ;; Created   : Monday, November 10 2025.
 ;; Author    : Pierre Rouleau <prouleau001@gmail.com>
-;; Time-stamp: <2025-11-11 14:22:41 EST, updated by Pierre Rouleau>
+;; Time-stamp: <2025-11-11 14:38:47 EST, updated by Pierre Rouleau>
 
 ;; This file is part of the TBINDENT package.
 ;; This file is not part of GNU Emacs.
@@ -85,13 +85,14 @@
 ;; rigidity and everybody might be happier!
 
 ;; Note that this code was first written to be part of my PEL system in the
-;; pel-indent.el file. I extracted it inside a stand-alone package to allow
+;; pel-indent.el file.  I extracted it inside a stand-alone package to allow
 ;; broader use, independent of PEL.
 
 ;;; --------------------------------------------------------------------------
 ;;; Dependencies:
 ;;
-;;    None.  This package is self-sufficient.
+;;    Just Emacs provided packages:
+(require 'simple)         ; use: `normal-auto-fill-function'
 
 ;;; --------------------------------------------------------------------------
 ;;; Code:
@@ -259,7 +260,7 @@ This alist maps the mode name to one of 3 possible entities:
 - A list holding the names of each variable that control various aspects of
   the mode's indentation.  Each of these variables must be set to the same
   value as `tab-width'.
-- A list of (varname . offset) cons cell(s). The car of the cons cell is the
+- A list of (varname . offset) cons cell(s).  The car of the cons cell is the
   name of the indentation control variable.  The cdr of the cons cell is the
   offset that must be applied to `tab-width' to get the indentation value.
 
@@ -296,7 +297,7 @@ default: `standard-indent'."
   "Return the indentation width used by current major mode or MODE.
 Return the value of the indentation control variable used for the
 current major mode (or the specified MODE) if there is one.  If there
-are several, return the value of the first one. Return the value of
+are several, return the value of the first one.  Return the value of
 `standard-indent' otherwise."
   (let ((vars (tbindent-mode-indent-control-vars mode)))
     (if vars
@@ -359,11 +360,11 @@ contain one \"%s\" that is replaced by the prefix string before the
   (symbol-value (tbindent-major-mode-symbol-for symbol-format-string)))
 
 (defun tbindent-major-mode-symbol-value-or (symbol-format-string default-value)
-  "Return the value or default of major-mode specific symbol for specified buffer.
-
+  "Return value or default of major-mode specific symbol for specified buffer.
 The symbol name is identified by the SYMBOL-FORMAT-STRING which must
 contain one \"%s\" that is replaced by the prefix string before the
-\"-mode\" (or \"-ts-mode\") of the major mode of the the current buffer."
+\"-mode\" (or \"-ts-mode\") of the major mode of the the current buffer.
+If nothing exists for the current major-mode return DEFAULT-VALUE."
   (condition-case nil
       (tbindent-major-mode-symbol-value symbol-format-string)
     (error default-value)))
@@ -392,7 +393,9 @@ contain one \"%s\" that is replaced by the prefix string before the
   "Tab width set by last `tbindent-set-tab-width' call.")
 
 (defun tbindent-read-number (prompt default history-symbol)
-  "Emacs version sensitive `read-number'."
+  "Emacs version sensitive `read-number'.
+Prompts with PROMPT, use DEFAULT value and the HISTORY-SYMBOL to track
+reply history."
   (with-no-warnings
     (if (>= emacs-major-version 28)
         (read-number prompt default history-symbol)
@@ -456,7 +459,7 @@ Return the new `tab-width' or nil if unchanged."
 
 
 (defun tbindent-inside-code (&optional pos)
-  "Return non-nil when point is in code, nil if in comment or string.
+  "Return non-nil when point or POS is in code, nil if in comment or string.
 Note that this changes the search match data!"
   (let* ((pos (or pos (point)))
          (syntax (syntax-ppss pos)))
@@ -524,8 +527,8 @@ must only be set by the call from `tbindent-mode'."
              "pel-indent-with-tabs-history-for-%s")))))
   (if (or by-minor-mode (not tbindent-mode))
       (progn
-        ;; First tabify indentation whitespace, replacing space-based indentation
-        ;; with tabs that represent the specified tab width.
+        ;; First tabify indentation whitespace, replacing space-based
+        ;; indentation with tabs that represent the specified tab width.
         (tbindent-tabify-all-indent)
         ;; Remember `tab-width' originally used in the buffer.
         ;; It should correspond with the indentation width.
@@ -558,9 +561,9 @@ must only be set by the call from `tbindent-mode'."
           (when (or  tbindent--original-tab-width
                      tbindent--last-set-tab-width)
             (tbindent-set-tab-width tbindent--original-tab-width)))
-        ;; Then untabify.  Note that hard-tabs inside strings and comments will be
-        ;; replaced by spaces.  If this is a problem in some cases, please let me
-        ;; know.
+        ;; Then untabify.  Note that hard-tabs inside strings and comments
+        ;; will be replaced by spaces.  If this is a problem in some cases,
+        ;; please let me know.
         (untabify (point-min) (point-max))
         ;; New indented code must now be indented with spaces.
         (indent-tabs-mode -1))
@@ -600,13 +603,13 @@ must only be set by the call from `tbindent-mode'."
 ;;    - `tbindent--restore-original-fill-function'
 
 (defvar-local tbindent--normalfile-fill-column nil
-  "The fill-column value used for the normal space indented file format.")
+  "The `fill-column' value used for the normal space indented file format.")
 
 (defun tbindent--adjusted-fill-column (space-indent-width viewed-tab-width
                                                           &optional position)
   "Return adjusted fill column for tab-indented line at POSITION or point.
 
-That is the fill-column that can be used in the tab-indented buffer to
+That is the `fill-column' that can be used in the tab-indented buffer to
 correspond to what `fill-column' is inside the real space-indented file.
 - SPACE-INDENT-WIDTH corresponds to what the file normally uses.
 - VIEWED-TAB-WIDTH corresponds to what is used in the buffer."
@@ -625,7 +628,7 @@ correspond to what `fill-column' is inside the real space-indented file.
       (+ tbindent--normalfile-fill-column extra-columns))))
 
 (defvar-local tbindent--normal-auto-fill-function nil
-  "Remember auto-fill-function normally used for normal files.")
+  "Remember function `auto-fill-function' normally used for normal files.")
 
 (defvar-local tbindent--space-based-indent-width nil
   "Original space based indentation width for the file.")
@@ -634,7 +637,7 @@ correspond to what `fill-column' is inside the real space-indented file.
   "Perform the auto-fill inside a tabs-indented buffer.
 Adjust the buffer-local `fill-column' based on the indentation scheme used and
 in the normal file and the tabs-based indentation used inside the buffer, then
-  execute the `do-auto-fill' "
+  execute the `do-auto-fill'"
   ;; Adjust the fill-column to what it should be if the indentation had been
   ;; reconverted back to 2-space indents and then execute the fill function.
   (let ((fill-column (tbindent--adjusted-fill-column
@@ -720,7 +723,7 @@ This is performed just before saving a buffer to a file or killing it."
 (defcustom tbindent-target-indent-width-default 4
   "Default target indentation width.
 The indentation and tab width used by the `tbindent-mode' if none
-is specified by the  "
+is specified in `tbindent-target-indent-widths' for the mode."
   :group 'tbindent
   :type 'integer
   :safe 'tbindent-indent-valid-p)
@@ -769,15 +772,16 @@ IMPORTANT:
         (progn
           (if (eq tab-width (tbindent-mode-indentation-width))
               (progn
-                ;; if buffer is modified allow user to save first.
-                ;; If user quit, catch and activate the mode anyway, without saving.
+                ;; if buffer is modified allow user to save first.  If user
+                ;; quit, catch and activate the mode anyway, without saving.
                 (condition-case nil
                     (when (and (buffer-modified-p)
                                (y-or-n-p (format "Save modified %S first? "
                                                  (current-buffer))))
                       (save-buffer))
                   (quit
-                   (message "Indenting with tabs Mode enabled, buffer not saved!")
+                   (message
+                    "Indenting with tabs Mode enabled, buffer not saved!")
                    (setq warning-message-printed t)))
                 ;; Proceed
                 (unless warning-message-printed
@@ -789,14 +793,16 @@ IMPORTANT:
                   (setq-local tbindent--space-based-indent-width
                               (tbindent-mode-indentation-width))
 
-                  ;; activate indentation with tabs using either the indentation width
-                  ;; specified by customization (if that symbol exists and is non-nil
-                  ;; or the native tab-width matching indentation width
+                  ;; activate indentation with tabs using either the
+                  ;; indentation width specified by customization (if that
+                  ;; symbol exists and is non-nil or the native tab-width
+                  ;; matching indentation width
                   (tbindent-indent-with-tabs
-                   (tbindent-target-indent-width-for major-mode) :by-minor-mode)
-                  ;; Install a special auto-fill function that is aware that each tab
-                  ;; in the buffer corresponds to the file original space indentation
-                  ;; scheme.
+                   (tbindent-target-indent-width-for major-mode)
+                   :by-minor-mode)
+                  ;; Install a special auto-fill function that is aware that
+                  ;; each tab in the buffer corresponds to the file original
+                  ;; space indentation scheme.
                   (tbindent--install-indented-with-tabs-auto-fill))
                 ;; The buffer was modified by replacing spaces with tabs but
                 ;; since we want to use it as if it was normal, don't show
