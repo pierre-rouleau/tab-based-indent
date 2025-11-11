@@ -2,7 +2,7 @@
 
 ;; Created   : Monday, November 10 2025.
 ;; Author    : Pierre Rouleau <prouleau001@gmail.com>
-;; Time-stamp: <2025-11-10 20:59:13 EST, updated by Pierre Rouleau>
+;; Time-stamp: <2025-11-11 08:00:11 EST, updated by Pierre Rouleau>
 
 ;; This file is part of the TBINDENT package.
 ;; This file is not part of GNU Emacs.
@@ -750,9 +750,7 @@ IMPORTANT:
         ;; When turning mode on
         ;; --------------------
         (progn
-          (if (eq tab-width
-                  (tbindent-mode-indentation-width))
-
+          (if (eq tab-width (tbindent-mode-indentation-width))
               (progn
                 ;; if buffer is modified allow user to save first.
                 ;; If user quit, catch and activate the mode anyway, without saving.
@@ -799,17 +797,17 @@ IMPORTANT:
                             'local))
 
                 (unless message-printed
-                  (message "Indenting with tabs Mode enabled."))))
-          ;; tab-width differs from current indentation.
-          (display-warning 'tbindent
-                           (format "\
+                  (message "Indenting with tabs Mode enabled.")))
+            ;; tab-width differs from current indentation!
+            (setq-local tbindent-mode nil)
+            (user-error "\
 Cannot activate tbindent-mode: tab-width (%d) differs from %s (%d)!
-Execute:  M-: (setq-local tab-width %d)"
-                                   tab-width
-                                   (tbindent-mode-indent-control-vars)
-                                   (tbindent-mode-indentation-width)
-                                   (tbindent-mode-indentation-width)))
-          (setq-local tbindent-mode nil))
+These must be the same and must represent the real indentation width used.
+To change tab-width, type:  M-: (setq-local tab-width %d)"
+                        tab-width
+                        (tbindent-mode-indent-control-vars)
+                        (tbindent-mode-indentation-width)
+                        (tbindent-mode-indentation-width))))
 
       ;; When turning mode off
       ;; ---------------------
