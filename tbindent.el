@@ -3,13 +3,13 @@
 ;; Copyright (C) 2025  Pierre Rouleau
 
 ;; Author: Pierre Rouleau <prouleau001@gmail.com>
-;; Created   : Monday, November 10 2025.
-;; Time-stamp: <2025-11-11 17:19:20 EST, updated by Pierre Rouleau>
+;; Maintainer: Pierre Rouleau <prouleau001@gmail.com>
 ;; URL: https://github.com/pierre-rouleau/tab-based-indent
-;; Keywords: languages
-;; Package-Version: 20251110.1652
+;; Created   : Monday, November 10 2025.
+;; Version: 0.1
+;; Package-Version: 20251112.1632
+;; Keywords: convenience, languages
 ;; Package-Requires: ((emacs "24.3"))
-
 
 ;; This file is part of the TBINDENT package.
 ;; This file is not part of GNU Emacs.
@@ -406,6 +406,7 @@ reply history."
         (read-number prompt default history-symbol)
       (read-number prompt default))))
 
+;;;###autoload
 (defun tbindent-set-tab-width (n)
   "Set the tab and indent width used in current buffer to N.
 
@@ -506,6 +507,7 @@ This is a indentation specific `tabify' function."
 
 (defvar tbindent-mode)                  ; prevent byte compiler warnings
 
+;;;###autoload
 (defun tbindent-indent-with-tabs (&optional with-tab-width by-minor-mode)
   "Convert current buffer to use tabs for indentation.
 
@@ -545,6 +547,7 @@ must only be set by the call from `tbindent-mode'."
         (indent-tabs-mode 1))
     (user-error "Command not available while tbindent-mode is active!")))
 
+;;;###autoload
 (defun tbindent-indent-with-spaces (&optional with-tab-width by-minor-mode)
   "Convert current buffer to use space for indentation.
 
@@ -757,7 +760,7 @@ Read the value from the `tbindent-target-indent-widths'.  If not found return
         (cdr spec)
       tbindent-target-indent-width-default)))
 
-
+;;;###autoload
 (define-minor-mode tbindent-mode
   "Minor mode that automatically converts buffer to tab-based indentation.
 
@@ -858,5 +861,12 @@ To change tab-width, type:  M-: (setq-local tab-width %d)"
 
 ;;; --------------------------------------------------------------------------
 (provide 'tbindent)
+
+;; Local variables:
+;; time-stamp-format: "%Y%02m%02d.%02H%02M"
+;; time-stamp-start: "Package-Version:[ \t]+\\\\?"
+;; time-stamp-end: "\n"
+;; time-stamp-line-limit: 15
+;; End:
 
 ;;; tbindent.el ends here
