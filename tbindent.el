@@ -1,4 +1,4 @@
-;;; tbindent.el --- Tab Based Indentation Control  -*- lexical-binding: t; -*-
+;;; tbindent.el --- Tab Based Indentation Converter  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025  Pierre Rouleau
 
@@ -7,7 +7,7 @@
 ;; URL: https://github.com/pierre-rouleau/tab-based-indent
 ;; Created   : Monday, November 10 2025.
 ;; Version: 0.1
-;; Package-Version: 20251112.1632
+;; Package-Version: 20251112.1700
 ;; Keywords: convenience, languages
 ;; Package-Requires: ((emacs "24.3"))
 

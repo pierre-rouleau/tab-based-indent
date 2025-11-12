@@ -1,6 +1,9 @@
-==============================================================================
-Tab Based Indent -- Edit space-based indented files with tab-based indentation
-==============================================================================
+===============================
+Tab-Based Indentation Converter
+===============================
+
+Seamlessly convert space-based indented files to tab-based indentation for
+viewing and editing.
 
 This package provides **tbindent-mode**, a minor mode which provides the
 ability to transparently convert the content of a file that is indented with a
