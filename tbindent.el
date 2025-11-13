@@ -7,9 +7,9 @@
 ;; URL: https://github.com/pierre-rouleau/tab-based-indent
 ;; Created   : Monday, November 10 2025.
 ;; Version: 0.1
-;; Package-Version: 20251112.1719
+;; Package-Version: 20251113.1124
 ;; Keywords: convenience, languages
-;; Package-Requires: ((emacs "24.3"))
+;; Package-Requires: ((emacs "29.1"))
 
 ;; This file is part of the TBINDENT package.
 ;; This file is not part of GNU Emacs.
@@ -93,22 +93,102 @@
 ;; pel-indent.el file.  I extracted it inside a stand-alone package to allow
 ;; broader use, independent of PEL.
 
+;; ---------------------------------------------------------------------------
+;;; History:
+;;
+;; - Version 0.1: created, November 10, 2025 from code taken on my PEL project
+;;                making it self-sufficient allowing future publishing on
+;;                MELPA.
+
 ;;; --------------------------------------------------------------------------
 ;;; Dependencies:
 ;;
-;;    Just Emacs provided packages:
+;;  Just Emacs provided packages:
 (require 'simple)         ; use: `normal-auto-fill-function'
+;;
+;; The following variables are defined in Emacs built-ins:
+;; from: Emacs files.el   ; use: `before-save-hook', `after-save-hook',
+;;                        ;      `kill-buffer-hook'
+;; from: Emacs indent.el  ; use: `standard-indent'
+;; from: Emacs version.el ; use: `emacs-major-version'
+;;
 
 ;;; --------------------------------------------------------------------------
 ;;; Code:
 ;;
+
+;;* Customization
+;;  -------------
+
+(defun tbindent-indent-valid-p (n)
+  "Return t if N is a valid indentation integer in 2-8 range, nil otherwise."
+  (and (integerp n) (< n 9) (> n 1)))
+
+(defgroup tbindent nil
+  "Tabs Based Indentation."
+  :group 'indent)
+
+(defcustom tbindent-lighter " ⍈"
+  "Mode line lighter used by `tbindent-mode'."
+  :group 'tbindent
+  :type 'string)
+
+(defcustom tbindent-target-indent-width-default 4
+  "Default target indentation width.
+The indentation and tab width used by the `tbindent-mode' if none
+is specified in `tbindent-target-indent-widths' for the mode."
+  :group 'tbindent
+  :type 'integer
+  :safe 'tbindent-indent-valid-p)
+
+
+(defcustom tbindent-target-indent-widths '((dart-mode     . 4)
+                                           (dart-ts-mode  . 4)
+                                           (gleam-ts-mode . 4))
+  "Target indentation width per major mode.
+
+When specified, the `tbindent-mode' automatically selects the specified
+indentation width for tab-based indentation of the corresponding major
+mode."
+  :group 'tbindent
+  :type '(repeat :tag "Indent target for:"
+                 (cons
+                  (symbol  :tag "mode name        ")
+                  (integer :tag "indentation width" :value 4))))
+
+(defcustom tbindent-extra-mode-indent-vars nil
+  "User specified indentation variable specifications for modes.
+This is a alist mapping the major mode name to the name of one variable, a list
+of variables or a list of (vars . offset).  This identifies the name of the
+indentation control variable or variables used by the mode and if necessary an
+width offset applied to the variable: var = width + offset.
+
+By adding entries into this list, you can add information that complements or
+overrides the entries in the hard-coded `tbindent--mode-indent-vars'.
+
+For example if you use the old `ada-mode' you could add the entry that maps it
+to `ada-indent' variable."
+  :group 'tbindent
+  :type '(repeat
+          (list
+           (symbol :tag "mode name   ")
+           (choice :tag "use"
+                   (symbol :tag "indent control variable name")
+                   (repeat :tag "Several variables"
+                    (symbol :tag "indent control variable name"))
+                   (repeat :tag "Several (var . offset) cells"
+                    (cons
+                     (symbol :tag "indent control variable name ")
+                     (integer :tag "offset from tab-width applied")))))))
 
 ;;* Mode Specific Indentation Width Utilities
 ;;  -----------------------------------------
 ;;
 ;; - `tbindent-mode-indentation-width'
 ;;   - `tbindent-mode-indent-control-vars'
-;;      -d: tbindent--mode-indent-vars
+;;     - `tbindent--indent-vars-for'
+;;       -d: tbindent-extra-mode-indent-vars
+;;       -d: tbindent--mode-indent-vars
 ;;     - `tbindent-string-ends-with-p'
 
 ;; Credit Note: the following table was originally derived from code
@@ -117,14 +197,19 @@
 ;;              https://github.com/jcs-elpa/indent-control
 ;;
 ;; Note: `package-lint-current-buffer' reports 17 false-positive errors
-;;       on the following declaration.
+;;       on the following declaration when Emacs 24.3 is the target
+;;       instead of 29.1.
 ;;       His author have acknowledged those being false positive as described
 ;;       in: https://github.com/purcell/package-lint/issues/304
+;;       For the moment, I prevent the false positive from triggering by
+;;       restricting to Emacs >= 29.1 and commenting out ada-mode.
+;; [: TODO 2025-11-13, by Pierre Rouleau: remove all that once package-lint
+;;                                       is fixed.]
 ;;
 (defconst tbindent--mode-indent-vars
   ;; Mode                Variable, list of variables, list of (var . offset)
   '((actionscript-mode   actionscript-indent-level)
-    (ada-mode            ada-indent)    ; Ada
+    ;; (ada-mode     ada-indent) ; generates package-lint false-positive error
     (ada-ts-mode         ada-ts-mode-indent-offset)
     (apache-mode         apache-indent-level)
     (awk-mode            c-basic-offset)
@@ -290,16 +375,29 @@ Ignore case differences if IGNORE-CASE is non-nil."
          (eq t (compare-strings suffix nil nil
                                 text (- text-len suffix-len) nil)))))
 
+(defun tbindent--indent-vars-for (mode)
+  "Return indentation variable(s) for specified major MODE.
+It may return:
+- a single variable symbol, the indentation variable for the MODE,
+- a list of indentation variable symbols,
+- a list of (varname . offset) cons cells.
+
+First look in the user-specified `tbindent-extra-mode-indent-vars' table.
+If nothing found, then look into `tbindent--mode-indent-vars'."
+  (let ((vars (cadr (assoc mode tbindent-extra-mode-indent-vars))))
+    (unless vars
+      (setq vars (cadr (assoc mode tbindent--mode-indent-vars))))))
+
 (defun tbindent-mode-indent-control-vars (&optional mode)
   "Return list of indentation control vars for current major mode or MODE.
 Return nil if none is known.  In that case the variable is probably the
 default: `standard-indent'."
   (let* ((mode (or mode major-mode))
-         (vars (cadr (assoc mode tbindent--mode-indent-vars))))
+         (vars (tbindent--indent-vars-for mode)))
     (unless vars
       (when (tbindent-string-ends-with-p (symbol-name mode) "-ts-mode")
         (setq mode (intern (format "%s-mode" (tbindent-file-type-for mode))))
-        (setq vars (cadr (assoc mode tbindent--mode-indent-vars)))))
+        (setq vars (tbindent--indent-vars-for mode))))
     (if (listp vars)
         vars
       (list vars))))
@@ -721,41 +819,6 @@ This is performed just before saving a buffer to a file or killing it."
 ;;* Minor Mode
 ;;  ----------
 
-(defun tbindent-indent-valid-p (n)
-  "Return t if N is a valid indentation integer in 2-8 range, nil otherwise."
-  (and (integerp n) (< n 9) (> n 1)))
-
-(defgroup tbindent nil
-  "Tabs Based Indentation."
-  :group 'indent)
-
-(defcustom tbindent-lighter " ⍈"
-  "Mode line lighter used by tbindent-mode."
-  :group 'tbindent
-  :type 'string)
-
-(defcustom tbindent-target-indent-width-default 4
-  "Default target indentation width.
-The indentation and tab width used by the `tbindent-mode' if none
-is specified in `tbindent-target-indent-widths' for the mode."
-  :group 'tbindent
-  :type 'integer
-  :safe 'tbindent-indent-valid-p)
-
-
-(defcustom tbindent-target-indent-widths '((dart-mode     . 4)
-                                           (dart-ts-mode  . 4)
-                                           (gleam-ts-mode . 4))
-  "Target indentation width per major mode.
-
-When specified, the `tbindent-mode' automatically selects that indentation
-width for tab-based indentation."
-  :group 'tbindent
-  :type '(repeat :tag "Indent target for:"
-                 (cons
-                  (symbol  :tag "mode name        ")
-                  (integer :tag "indentation width" :value 4))))
-
 (defun tbindent-target-indent-width-for (&optional mode)
   "Return target indentation width requested for current major mode or MODE.
 Read the value from the `tbindent-target-indent-widths'.  If not found return
@@ -771,13 +834,12 @@ Read the value from the `tbindent-target-indent-widths'.  If not found return
   "Minor mode that automatically converts buffer to tab-based indentation.
 
 Once the mode is active, change the visual indentation with the
-`tbindent-set-tab-width' command.
+`tbindent-set-tab-width' command with \\[tbindent-set-tab-width].
 
-
-IMPORTANT:
- Note that the `tbindent-mode' only works for buffer where the `tab-width'
- can be set to the same value as the indentation variable or all indentation
- variables."
+IMPORTANT: Note that `tbindent-mode' only works for buffer where
+`tab-width' has the same value as the indentation control variable.  It
+checks that when activating the mode and will refuse to activate it when
+the conditions are not met issuing a descriptive user-error instead."
   :lighter tbindent-lighter
   (let ((warning-message-printed nil))
     (if tbindent-mode
@@ -838,7 +900,8 @@ IMPORTANT:
                             'local))
 
                 (unless warning-message-printed
-                  (message "Indenting with tabs Mode enabled.")))
+                  (message "Indenting with tabs Mode enabled; width=%d."
+                           tab-width)))
             ;; tab-width differs from current indentation!
             (setq-local tbindent-mode nil)
             (user-error "\
@@ -863,7 +926,6 @@ To change tab-width, type:  M-: (setq-local tab-width %d)"
       (when (memq 'tbindent--after-save after-save-hook)
         (remove-hook 'after-save-hook 'tbindent--after-save 'local))
       (message "Indenting with tabs Mode disabled."))))
-
 
 ;;; --------------------------------------------------------------------------
 (provide 'tbindent)
