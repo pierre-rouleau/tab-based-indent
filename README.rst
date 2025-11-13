@@ -11,6 +11,8 @@ fixed number of spaces into a buffer which uses tab-based indentation and save
 the buffer content back to file with the original space-based indentation
 scheme.
 
+.. image:: res/tbindent.gif
+
 Overview
 ========
 
