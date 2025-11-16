@@ -7,7 +7,7 @@
 ;; URL: https://github.com/pierre-rouleau/tab-based-indent
 ;; Created   : Monday, November 10 2025.
 ;; Version: 0.1
-;; Package-Version: 20251113.1124
+;; Package-Version: 20251116.1338
 ;; Keywords: convenience, languages
 ;; Package-Requires: ((emacs "29.1"))
 
@@ -729,8 +729,7 @@ correspond to what `fill-column' is inside the real space-indented file.
     (when position (goto-char position))
     (let* ((extra-columns-per-tab (- viewed-tab-width space-indent-width))
            (line-start-pos (progn (forward-line 0) (point)))
-           (line-end-pos   (progn (end-of-line) (point)))
-           (tab-count      (count-matches "\t" line-start-pos line-end-pos))
+           (tab-count      (count-matches "\t" line-start-pos (line-end-position)))
            (extra-columns  (* tab-count extra-columns-per-tab)))
       ;; Cache the real, file-specific, `fill-column' value in buffer local
       ;; variable.
@@ -887,15 +886,15 @@ the conditions are not met issuing a descriptive user-error instead."
                   (set-buffer-modified-p nil))
                 ;; schedule operation before and after buffer save.
                 (unless (memq 'tbindent--before-save-or-kill  before-save-hook)
-                  (add-hook 'before-save-hook 'tbindent--before-save-or-kill
+                  (add-hook 'before-save-hook #'tbindent--before-save-or-kill
                             -100
                             'local))
                 (unless (memq 'tbindent--before-save-or-kill  kill-buffer-hook)
-                  (add-hook 'kill-buffer-hook 'tbindent--before-save-or-kill
+                  (add-hook 'kill-buffer-hook #'tbindent--before-save-or-kill
                             -100
                             'local))
                 (unless (memq 'tbindent--after-save after-save-hook)
-                  (add-hook 'after-save-hook 'tbindent--after-save
+                  (add-hook 'after-save-hook #'tbindent--after-save
                             +100
                             'local))
 
@@ -920,11 +919,11 @@ To change tab-width, type:  M-: (setq-local tab-width %d)"
         (tbindent-indent-with-spaces nil :by-minor-mode))
       (tbindent--restore-original-fill-function)
       (when (memq 'tbindent--before-save-or-kill before-save-hook)
-        (remove-hook 'before-save-hook 'tbindent--before-save-or-kill 'local))
+        (remove-hook 'before-save-hook #'tbindent--before-save-or-kill 'local))
       (when (memq 'tbindent--before-save-or-kill kill-buffer-hook)
-        (remove-hook 'kill-buffer-hook 'tbindent--before-save-or-kill 'local))
+        (remove-hook 'kill-buffer-hook #'tbindent--before-save-or-kill 'local))
       (when (memq 'tbindent--after-save after-save-hook)
-        (remove-hook 'after-save-hook 'tbindent--after-save 'local))
+        (remove-hook 'after-save-hook #'tbindent--after-save 'local))
       (message "Indenting with tabs Mode disabled."))))
 
 ;;; --------------------------------------------------------------------------
