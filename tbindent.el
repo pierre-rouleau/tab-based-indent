@@ -6,10 +6,10 @@
 ;; Maintainer: Pierre Rouleau <prouleau001@gmail.com>
 ;; URL: https://github.com/pierre-rouleau/tab-based-indent
 ;; Created   : Monday, November 10 2025.
-;; Version: 0.1
-;; Package-Version: 20251116.1338
+;; Version: 0.1.1
+;; Package-Version: 20251123.1611
 ;; Keywords: convenience, languages
-;; Package-Requires: ((emacs "29.1"))
+;; Package-Requires: ((emacs "24.3"))
 
 ;; This file is part of the TBINDENT package.
 ;; This file is not part of GNU Emacs.
@@ -30,15 +30,15 @@
 ;;; --------------------------------------------------------------------------
 ;;; Commentary:
 ;;
-;; This file provides the `tbindent-mode', a minor mode that seamlessly
-;; converts the space-based indentation of a file into a buffer that uses
-;; tab-based indentation allowing you to edit a file that uses a specific
-;; indentation scheme with another one.   While the minor mode is active you
-;; can change the indentation width any time by executing the
-;; `tbindent-set-tab-width' command.  That command simply changes the
-;; `tab-width' and the indentation with to the new value, changing the way the
-;; indentation is rendered in the buffer, making it wider or narrower.  When
-;; you same the buffer content back to the file, the mode automatically
+;; This provides the `tbindent-mode', a minor mode that seamlessly
+;; converts the space-based indentation file into tab-based indented buffer.
+;;
+;; While the minor mode is active you can change the indentation width by
+;; executing the `tbindent-set-tab-width' command.  That command changes the
+;; `tab-width' and the indentation width to the new value, to use narrower or
+;; wider indentation.
+;;
+;; When saving the buffer content back to the file, the mode automatically
 ;; converts the indentation back to the original space-indentation scheme.
 ;;
 ;;
@@ -47,21 +47,15 @@
 ;; Although not popular in most software development circles, using hard tabs
 ;; for indentation provides the undeniable advantage of flexibility in terms
 ;; of visual rendering.  Once all indentation level correspond to 1 hard-tab
-;; it becomes very easy to change the visual width of indentation by simply
-;; changing the rendered width of a hard tab character and that does not
-;; modify the content of the file.
+;; you can easily change the visual width of indentation with the
+;; `tbindent-set-tab-width' command.  That does not modify the content of the
+;; file.
 ;;
-;; This is a feature that appeals to people that have problems working with
-;; small indentation width as increasing being reported on the Internet.  To
-;; them the hard-line strict guidelines imposed by programming communities
-;; such as Dart and Gleam who impose a 2-space indentation scheme is a real
-;; problem.
-;;
-;; If the indentation scheme content of the files in those programming
-;; languages cannot be changed as imposed by these draconian rules, a
-;; workaround is to temporary change the indentation scheme to a hard-tab
-;; based indentation and then change the width of the hard tab as well as the
-;; width of all indentation control variables for the mode.
+;; This feature may appeal to people that have problems working with small
+;; indentation width imposed by language or team conventions.  It acts as a
+;; workaround: temporary change the indentation scheme to a hard-tab based
+;; indentation for editing, change the width of the hard tab for visibility
+;; but keep the original indentation scheme inside the file.
 ;;
 ;; For example, Dart and Gleam impose a 2-space indentation level.  For
 ;; buffers using major modes for those languages, we can use the following
@@ -73,7 +67,7 @@
 ;; - change the with of hard tabs (controlled by the `tab-width' variable),
 ;;   and the width of the variables for the major mode to a larger value.
 ;;
-;; Once this is done, we can see the code with a wider indentation and
+;; Once set-up we can see the code with a wider indentation and
 ;; continue to work with the rules imposed by the major mode logic.
 ;;
 ;; Later, before saving the buffer back to the file, we simply perform the
@@ -81,24 +75,26 @@
 ;;
 ;; - restore the tab and indentation width back to 2,
 ;; - untabify all indentation whitespace,
-;; - saving the file.
+;; - save the file.
 ;;
-;; All necessary functions are provided here, along with a special minor-mode
+;; The library provides all necessary functions, along with a special minor-mode
 ;; that automatically performs all operation seamlessly, allowing editing the
-;; Dart and Gleam files with wider indentation just as if they had flexible
-;; guidelines.  The files will always retain their original indentation scheme
-;; rigidity and everybody might be happier!
-
-;; Note that this code was first written to be part of my PEL system in the
-;; pel-indent.el file.  I extracted it inside a stand-alone package to allow
-;; broader use, independent of PEL.
+;; files with wider indentation despite the space-based indentation used in
+;; the files.
+;;
+;; The files retain their original space-based indentation scheme but you can
+;; edit them with a wider or narrower indention width!
+;;
+;; For more information see the README.rst.txt file.
 
 ;; ---------------------------------------------------------------------------
 ;;; History:
 ;;
+;; - Version 0.1.01: Update description, docstring typo fix, allow Emacs 24.3.
 ;; - Version 0.1: created, November 10, 2025 from code taken on my PEL project
 ;;                making it self-sufficient allowing future publishing on
-;;                MELPA.
+;;                MELPA.  Restricted to Emacs 29.1 to comply with package-lint
+;;                despite the false positives reports.
 
 ;;; --------------------------------------------------------------------------
 ;;; Dependencies:
@@ -157,7 +153,7 @@ mode."
                   (integer :tag "indentation width" :value 4))))
 
 (defcustom tbindent-extra-mode-indent-vars nil
-  "User specified indentation variable specifications for modes.
+  "User-specified indentation variable specifications for modes.
 This is a alist mapping the major mode name to the name of one variable, a list
 of variables or a list of (vars . offset).  This identifies the name of the
 indentation control variable or variables used by the mode and if necessary an
