@@ -4,7 +4,7 @@
 # Purpose   : Byte compile package.
 # Created   : Tuesday, November 11 2025.
 # Author    : Pierre Rouleau <prouleau001@gmail.com>
-# Time-stamp: <2025-11-11 14:24:23 EST, updated by Pierre Rouleau>
+# Time-stamp: <2025-11-24 11:40:48 EST, updated by Pierre Rouleau>
 # ----------------------------------------------------------------------------
 # Module Description
 # ------------------
@@ -24,6 +24,7 @@
 #
 #
 
-emacs -Q  --batch -L . -f batch-byte-compile tbindent.el
+set -x
+emacs -Q  --batch -L . --eval '(setq byte-compile-error-on-warn t)' -f batch-byte-compile tbindent.el
 
 # ----------------------------------------------------------------------------
