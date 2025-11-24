@@ -8,7 +8,7 @@ Tab-Based Indentation Converter
 
 
 - **Seamlessly convert space-based indented files to tab-based indentation for viewing and editing.**
-- **Decouple the file indentation-scheme from what buffer uses for viewing and editing**
+- **Decouple the file indentation-scheme from what buffer uses for viewing and editing.**
 
 This package provides **tbindent-mode**, a minor mode which provides the
 ability to transparently convert the content of a file indented with a
