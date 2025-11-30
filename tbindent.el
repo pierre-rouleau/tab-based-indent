@@ -6,8 +6,8 @@
 ;; Maintainer: Pierre Rouleau <prouleau001@gmail.com>
 ;; URL: https://github.com/pierre-rouleau/tab-based-indent
 ;; Created   : Monday, November 10 2025.
-;; Version: 0.2.1
-;; Package-Version: 20251125.0803
+;; Version: 0.3.0
+;; Package-Version: 20251130.1345
 ;; Keywords: convenience, languages
 ;; Package-Requires: ((emacs "24.3"))
 
@@ -90,14 +90,25 @@
 ;; ---------------------------------------------------------------------------
 ;;; History:
 ;;
-;; - Version 0.2.1 : Improve title.
-;; - Version 0.2   : Enhance safety: do not activate tbindent-mode if the
-;;                   indentation variable(s) for the major mode is unknown.
-;; - Version 0.1.01: Update description, docstring typo fix, allow Emacs 24.3.
-;; - Version 0.1: created, November 10, 2025 from code taken on my PEL project
-;;                making it self-sufficient allowing future publishing on
-;;                MELPA.  Restricted to Emacs 29.1 to comply with package-lint
-;;                despite the false positives reports.
+;; - Version 0.3.0 :
+;;     - Simplify use: tbindent-mode automatically adjusts `tab-width' if it
+;;       differs from the value of the major mode indentation control
+;;       variable; it no longer requires the user to do it manually.  If the
+;;       indentation control variable is unknown for the major mode then it
+;;       issues an error with instructions.
+;;     - All messages start with "tbindent:"
+;; - Version 0.2.1:
+;;     Improve title.
+;; - Version 0.2.0:
+;;     Enhance safety: do not activate tbindent-mode if the indentation
+;;     variable(s) for the major mode is unknown.
+;; - Version 0.1.01:
+;;     Update description, docstring typo fix, allow Emacs 24.3.
+;; - Version 0.1:
+;;     Created, November 10, 2025 from code taken on my PEL project making it
+;;     self-sufficient allowing future publishing on MELPA.  Restricted to
+;;     Emacs 29.1 to comply with package-lint despite the false positives
+;;     reports.
 
 ;;; --------------------------------------------------------------------------
 ;;; Dependencies:
@@ -527,7 +538,9 @@ Return the new `tab-width' or nil if unchanged."
                                     'tbindent-set-tab-width-history)))
     ;;
     (when (not (= n current-tab-width))
-      (message "Changed buffer's tab-width from %d to %d" current-tab-width n)
+      (message
+       "tbindent: changed buffer's tab-width from %d to %d"
+       current-tab-width n)
       (when control-vars
         (dolist (var control-vars)
           (if (consp var)
@@ -826,6 +839,9 @@ Read the value from the `tbindent-target-indent-widths'.  If not found return
         (cdr spec)
       tbindent-target-indent-width-default)))
 
+(defvar-local tbindent--original-tab-width nil
+  "Value of buffer tab-width used before `tbindent-mode' activation.")
+
 ;;;###autoload
 (define-minor-mode tbindent-mode
   "Minor mode that automatically converts buffer to tab-based indentation.
@@ -843,95 +859,98 @@ the conditions are not met issuing a descriptive user-error instead."
     (if tbindent-mode
         ;; When turning mode on
         ;; --------------------
-        (progn
-          (if (and mode-indentation-width
-                   (eq tab-width mode-indentation-width))
-              ;; Meeting all conditions to activate the mode
-              (progn
-                ;; On modified buffer, allow user to save first.  If user
-                ;; quit, catch and activate the mode anyway, without saving.
-                (condition-case nil
-                    (when (and (buffer-modified-p)
-                               (y-or-n-p (format "Save modified %S first? "
-                                                 (current-buffer))))
-                      (save-buffer))
-                  (quit
-                   (message
-                    "Indenting with tabs Mode enabled, buffer not saved!")
-                   (setq warning-message-printed t)))
-                ;; Proceed
-                (unless warning-message-printed
-                  (message "Converting %s to tab-based indent, width=%d ..."
-                           (current-buffer)
-                           tab-width ))
-                (with-silent-modifications
-                  ;; Remember the original space based indentation width
-                  (setq-local tbindent--space-based-indent-width
-                              (tbindent-mode-indentation-width))
+        (if mode-indentation-width
+            ;; Indentation width variable is known.
+            (progn
+              ;; Remember original tab-width
+              (setq tbindent--original-tab-width tab-width)
+              ;; Adjust local tab-width is necessary.
+              (unless (eq tab-width mode-indentation-width)
+                (message "tbindent: changing %s value of tab-width from %d to %d"
+                         (current-buffer)
+                         tab-width
+                         mode-indentation-width)
+                (setq-local tab-width mode-indentation-width))
+              ;; On modified buffer, allow user to save first.  If user
+              ;; quit, catch and activate the mode anyway, without saving.
+              (condition-case nil
+                  (when (and (buffer-modified-p)
+                             (y-or-n-p (format "Save modified %S first? "
+                                               (current-buffer))))
+                    (save-buffer))
+                (quit
+                 (message
+                  "tbindent on: indenting with tabs enabled, buffer not saved!")
+                 (setq warning-message-printed t)))
+              ;; Proceed
+              (unless warning-message-printed
+                (message
+                 "tbindent on: converting %s to tab-based indent, width=%d ..."
+                 (current-buffer)
+                 tab-width ))
+              (with-silent-modifications
+                ;; Remember the original space based indentation width
+                (setq-local tbindent--space-based-indent-width
+                            (tbindent-mode-indentation-width))
 
-                  ;; activate indentation with tabs using either the
-                  ;; indentation width specified by customization (if that
-                  ;; symbol exists and is non-nil or the native tab-width
-                  ;; matching indentation width
-                  (tbindent-indent-with-tabs
-                   (tbindent-target-indent-width-for major-mode)
-                   :by-minor-mode)
-                  ;; Install a special auto-fill function that is aware that
-                  ;; each tab in the buffer corresponds to the file original
-                  ;; space indentation scheme.
-                  (tbindent--install-indented-with-tabs-auto-fill))
-                ;; The buffer was modified by replacing spaces with tabs but
-                ;; since we want to use it as if it was normal, don't show
-                ;; the buffer modified unless it already was.
-                (unless warning-message-printed
-                  (set-buffer-modified-p nil))
-                ;; schedule operation before and after buffer save.
-                (unless (memq 'tbindent--before-save-or-kill  before-save-hook)
-                  (add-hook 'before-save-hook #'tbindent--before-save-or-kill
-                            -100
-                            'local))
-                (unless (memq 'tbindent--before-save-or-kill kill-buffer-hook)
-                  (add-hook 'kill-buffer-hook #'tbindent--before-save-or-kill
-                            -100
-                            'local))
-                (unless (memq 'tbindent--after-save after-save-hook)
-                  (add-hook 'after-save-hook #'tbindent--after-save
-                            +100
-                            'local))
+                ;; activate indentation with tabs using either the
+                ;; indentation width specified by customization (if that
+                ;; symbol exists and is non-nil or the native tab-width
+                ;; matching indentation width
+                (tbindent-indent-with-tabs
+                 (tbindent-target-indent-width-for major-mode)
+                 :by-minor-mode)
+                ;; Install a special auto-fill function that is aware that
+                ;; each tab in the buffer corresponds to the file original
+                ;; space indentation scheme.
+                (tbindent--install-indented-with-tabs-auto-fill))
+              ;; The buffer was modified by replacing spaces with tabs but
+              ;; since we want to use it as if it was normal, don't show
+              ;; the buffer modified unless it already was.
+              (unless warning-message-printed
+                (set-buffer-modified-p nil))
+              ;; schedule operation before and after buffer save.
+              (unless (memq 'tbindent--before-save-or-kill  before-save-hook)
+                (add-hook 'before-save-hook #'tbindent--before-save-or-kill
+                          -100
+                          'local))
+              (unless (memq 'tbindent--before-save-or-kill kill-buffer-hook)
+                (add-hook 'kill-buffer-hook #'tbindent--before-save-or-kill
+                          -100
+                          'local))
+              (unless (memq 'tbindent--after-save after-save-hook)
+                (add-hook 'after-save-hook #'tbindent--after-save
+                          +100
+                          'local))
 
-                (unless warning-message-printed
-                  (message "Indenting with tabs Mode enabled; width=%d."
-                           tab-width)))
-            ;; Not meeting all conditions!
-            (setq-local tbindent-mode nil)
-            (if mode-indentation-width
-                (user-error "\
-Can't activate tbindent-mode in %s: tab-width (%d) differs from %s (%d)!
-These must be the same and must represent the real indentation width used.
-To change tab-width, type:  M-: (setq-local tab-width %d)"
-                            (current-buffer)
-                            tab-width
-                            (tbindent-mode-indent-control-vars)
-                            mode-indentation-width
-                            mode-indentation-width)
-              (user-error "\
+              (unless warning-message-printed
+                (message "tbindent on: indenting with tabs enabled; width=%d."
+                         tab-width)))
+          ;; Indentation control variable is unknown!
+          (setq-local tbindent-mode nil)
+          (user-error "\
 Can't activate tbindent-mode in %s: Unknown indentation control variable for '%s'!
 Please identify it in the `tbindent-extra-mode-indent-vars' alist."
-                          (current-buffer)
-                          major-mode))))
+                      (current-buffer)
+                      major-mode))
 
       ;; When turning mode off
       ;; ---------------------
+      ;; Restore original space-based indentation scheme
       (with-silent-modifications
         (tbindent-indent-with-spaces nil :by-minor-mode))
+      ;; Restore original variable values
+      (setq  tab-width tbindent--original-tab-width)
       (tbindent--restore-original-fill-function)
+      ;; Remove the hooks
       (when (memq 'tbindent--before-save-or-kill before-save-hook)
         (remove-hook 'before-save-hook #'tbindent--before-save-or-kill 'local))
       (when (memq 'tbindent--before-save-or-kill kill-buffer-hook)
         (remove-hook 'kill-buffer-hook #'tbindent--before-save-or-kill 'local))
       (when (memq 'tbindent--after-save after-save-hook)
         (remove-hook 'after-save-hook #'tbindent--after-save 'local))
-      (message "Indenting with tabs Mode disabled."))))
+      ;; Inform user.
+      (message "tbindent off: restored file indentation scheme."))))
 
 ;;; --------------------------------------------------------------------------
 (provide 'tbindent)

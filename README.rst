@@ -6,7 +6,7 @@ Tab-Based Indentation Converter
    :alt: Melpa
    :target: https://melpa.org/#/tbindent
 
-
+- **Edit a 2-space indented file as if it was using a wider indentation!**
 - **Seamlessly convert space-based indented files to tab-based indentation for viewing and editing.**
 - **Decouple the file indentation-scheme from what buffer uses for viewing and editing.**
 
@@ -53,10 +53,20 @@ The conditions are:
 
 - Those values must also represent the real indentation width used inside the file.
 
-With those conditions met inside the buffer, an indentation step identified by
-the indentation control variable corresponds to the tab width and we can now
-change the tab-width and the value of the indentation control variable to
-change the visual rendering of indentation to be narrower or wider.
+When turning on:
+
+- ``tbindent-mode`` checks if the indentation variable for the
+  major mode is known and issue an error with instructions if it is unknown.
+- ``tbindent-mode`` compares the value of ``tab-width`` with the value of the
+  indentation control variable.  If they differ, it sets the local value of
+  ``tab-width`` to the value of the indentation control variable and issues a
+  message.
+
+At this point, inside the buffer, an indentation step identified by
+the indentation control variable corresponds to the tab width.
+The code can now change the tab-width and the value of the indentation control
+variable to change the visual rendering of indentation to be narrower or
+wider.
 
 The tbindent code includes a look-up table mapping major mode to the
 indentation control variable(s) that mode uses.  You can add more mappings or
@@ -66,7 +76,7 @@ Activation/deactivation:
 
 - When turning **tbindent-mode** on:
 
-  - it remembers the original indentation scheme,
+  - it remembers the original tab-width and indentation scheme,
   - converts each group of spaces that constitute one indentation step into
     one hard tab and adjust the value of the following buffer local variables:
 
@@ -79,6 +89,7 @@ Activation/deactivation:
 
 - When turning **tbindent-mode** off:
 
+  - it restores the original tab-width
   - it converts the content of the buffer back to the original space-based
     indentation scheme.
 
@@ -262,12 +273,6 @@ and will adjust the value of the indentation control variables accordingly.
 Then activate ``tbindent-mode`` manually with::
 
    M-x tbindent-mode
-
-If there is no discrepancy between the indentation control variable and
-``tab-width`` value, tbindent-mode activates and modifies the indentation
-rendering to match your specifications.  If there is a discrepancy tbindent-mode
-prints a message asking you to execute a command to set the buffer local value
-of ``tab-width`` to a specific value.  Do this and try again.
 
 Make modifications to the file.  Save the changes.  Diff your modifications to
 the files to see that the indentation of your modifications conform to the
